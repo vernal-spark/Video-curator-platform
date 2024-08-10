@@ -1,0 +1,26 @@
+.container {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding-top: 56.25%; 
+    margin-bottom: -11%;
+  }
+  
+  .iframe {
+    position: absolute;
+    top:0;
+    left:0;
+    border:0;
+    border-radius: 10px;
+    margin-bottom: 10%;
+    width: 100%;
+    height: 80%;
+  }
+
+  @media only screen and (max-width:1073px){
+    .container{
+      height:8rem;
+      width:100vw
+    }
+    
+  }

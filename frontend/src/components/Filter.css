@@ -1,0 +1,56 @@
+.filter {
+  background-color: #202020;
+  height: max-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.c1 {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.c2 {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.selected {
+  border-radius:15px;
+  height:2rem;
+  color:'black';
+  background-color:'white'
+}
+.not-selected {
+  border-right-color:15px;
+    height:2rem;
+    color:'white';
+    background-color:'#202020';
+}
+
+@media only screen and (max-width: 790px) {
+  .filter {
+    height: max-content;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  .c1{
+    display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  
+  }
+  .c2 {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}

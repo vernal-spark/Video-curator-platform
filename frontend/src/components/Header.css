@@ -1,0 +1,24 @@
+.header {
+  background: #202020;
+  height: 5vh;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.search-mobile {
+  display: none !important;
+}
+.search-desktop {
+  display: block !important;
+}
+
+@media screen and (max-width: 790px) {
+  .search-desktop {
+    display: none !important;
+  }
+  .search-mobile {
+    display: block !important;
+  }
+}
