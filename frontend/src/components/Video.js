@@ -1,78 +1,153 @@
-import { Box ,Stack,Typography,Button,CircularProgress} from "@mui/material";
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  CircularProgress,
+} from "@mui/material";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
-import axios from "axios";
-import {useEffect, useState} from 'react'
+import { useState, useCallback } from "react";
 import "./Video.css";
 import { useSnackbar } from "notistack";
-import {config} from '../App'
+import { videoAPI } from "../services/api";
 
-const Video = ({video,upVote,downVote,setUpVote,setDownVote}) => {
-  const {enqueSnackbar}=useSnackbar()
-  const [isLoading1,setIsLoading1]=useState(false)
-  const [isLoading2,setIsLoading2]=useState(false)
-    const upvote={
-        color:'white',
-        borderRadius:'10px'
-      }
-      const downvote={
-        color:'grey',
-        background:'#202020',
-        borderRadius:'10px'
-      }
+const Video = ({ video, upVote, downVote, setUpVote, setDownVote }) => {
+  const { enqueueSnackbar } = useSnackbar();
+  const [isUpVoting, setIsUpVoting] = useState(false);
+  const [isDownVoting, setIsDownVoting] = useState(false);
 
-      const handleUpVote=async()=>{
-        setIsLoading1(true)
-        try{
-          const body={
-            "vote": "upVote",
-            "change": "increase"
-        }
-          await axios.patch(`${config.endpoint}v1/videos/${video._id}/votes`,body)
-          setUpVote(upVote+1)
-          setIsLoading1(false)
-        }catch(e){
-          enqueSnackbar(e.response.data.message,{variant:"error"})
-          setIsLoading1(false)
-        }
-        
-      }
-      const handleDownVote=async()=>{
-        setIsLoading2(true)
-        try{
-          const body={
-            "vote": "downVote",
-            "change": "increase"
-        }
-          await axios.patch(`${config.endpoint}v1/videos/${video._id}/votes`,body)
-          setDownVote(downVote+1)
-          setIsLoading2(false)
-        }catch(e){
-          enqueSnackbar(e.response.data.message,{variant:"error"})
-          setIsLoading2(false)
-        }        
-      }
+  const upvoteStyle = {
+    color: "white",
+    borderRadius: "10px",
+  };
+
+  const downvoteStyle = {
+    color: "grey",
+    background: "#202020",
+    borderRadius: "10px",
+  };
+
+  const handleUpVote = useCallback(async () => {
+    if (isUpVoting || isDownVoting) return;
+
+    setIsUpVoting(true);
+    try {
+      const voteData = {
+        vote: "upVote",
+        change: "increase",
+      };
+      await videoAPI.updateVotes(video._id, voteData);
+      setUpVote(upVote + 1);
+      enqueueSnackbar("Upvoted successfully!", { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error.message || "Failed to upvote", {
+        variant: "error",
+      });
+    } finally {
+      setIsUpVoting(false);
+    }
+  }, [video._id, upVote, setUpVote, enqueueSnackbar, isUpVoting, isDownVoting]);
+
+  const handleDownVote = useCallback(async () => {
+    if (isUpVoting || isDownVoting) return;
+
+    setIsDownVoting(true);
+    try {
+      const voteData = {
+        vote: "downVote",
+        change: "increase",
+      };
+      await videoAPI.updateVotes(video._id, voteData);
+      setDownVote(downVote + 1);
+      enqueueSnackbar("Downvoted successfully!", { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error.message || "Failed to downvote", {
+        variant: "error",
+      });
+    } finally {
+      setIsDownVoting(false);
+    }
+  }, [
+    video._id,
+    downVote,
+    setDownVote,
+    enqueueSnackbar,
+    isUpVoting,
+    isDownVoting,
+  ]);
   return (
-    <Stack  spacing={2}>
-    <Box className="container">
-      <iframe
-        className="iframe"
-        title={video.title}
-        src={`https://www.${video.videoLink}`}
-      />
-    </Box>
-    <Box sx={{px:1}}>
-        <Stack direction='row' alignItems='center' justifyContent='space-between'>
-          <Stack spacing={1} direction='column' alignItems='flex-start' justifyContent='flex-start'>
-            <Typography color='white'>{video.title}</Typography>
-            <Typography variant='body2' color='grey'>{video.contentRating}&nbsp;&nbsp;&bull;&nbsp;&nbsp;{video.releaseDate}</Typography>
+    <Stack spacing={2}>
+      <Box className="container">
+        <iframe
+          className="iframe"
+          title={video.title}
+          src={`https://www.${video.videoLink}`}
+          allowFullScreen
+          loading="lazy"
+        />
+      </Box>
+      <Box sx={{ px: 1 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+        >
+          <Stack
+            spacing={1}
+            direction="column"
+            alignItems="flex-start"
+            justifyContent="flex-start"
+          >
+            <Typography color="white" variant="h6">
+              {video.title}
+            </Typography>
+            <Typography variant="body2" color="grey">
+              {video.contentRating}&nbsp;&nbsp;&bull;&nbsp;&nbsp;
+              {new Date(video.releaseDate).toLocaleDateString()}
+            </Typography>
           </Stack>
-          <Stack spacing={1} direction='row' alignItems='center' justifyContent='flex-end'>
-            <Button variant='contained' sx={upvote} onClick={handleUpVote}>{isLoading1?<CircularProgress color='inherit'/>:(<><ThumbUpIcon/>&nbsp;{upVote}</>)}</Button>
-            <Button variant='text' sx={downvote} onClick={handleDownVote}>{isLoading2?<CircularProgress/>:(<><ThumbDownIcon/>&nbsp;{downVote}</>)}</Button>
+          <Stack
+            spacing={1}
+            direction="row"
+            alignItems="center"
+            justifyContent="flex-end"
+          >
+            <Button
+              variant="contained"
+              sx={upvoteStyle}
+              onClick={handleUpVote}
+              disabled={isUpVoting || isDownVoting}
+              aria-label={`Upvote ${video.title}`}
+            >
+              {isUpVoting ? (
+                <CircularProgress color="inherit" size={20} />
+              ) : (
+                <>
+                  <ThumbUpIcon />
+                  &nbsp;{upVote}
+                </>
+              )}
+            </Button>
+            <Button
+              variant="text"
+              sx={downvoteStyle}
+              onClick={handleDownVote}
+              disabled={isUpVoting || isDownVoting}
+              aria-label={`Downvote ${video.title}`}
+            >
+              {isDownVoting ? (
+                <CircularProgress size={20} />
+              ) : (
+                <>
+                  <ThumbDownIcon />
+                  &nbsp;{downVote}
+                </>
+              )}
+            </Button>
           </Stack>
         </Stack>
-    </Box>
+      </Box>
     </Stack>
   );
 };

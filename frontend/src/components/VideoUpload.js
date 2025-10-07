@@ -12,9 +12,8 @@ import {
   Modal,
   FormSelect,
 } from "@mui/material";
-import { config } from "../App";
+import { videoAPI } from "../services/api";
 import dayjs from "dayjs";
-import axios from "axios";
 import UploadIcon from "@mui/icons-material/Upload";
 import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -208,31 +207,42 @@ const VideoUpload = ({ defaultApiCall }) => {
       releaseDate: date,
       previewImage: previewImage,
     };
-    if (
-      body.videoLink &&
-      body.title &&
-      body.genre &&
-      body.contentRating &&
-      body.releaseDate &&
-      body.previewImage
-    ) {
-      try {
-        await axios.post(`${config.endpoint}v1/videos/`, body, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        handleClose();
-        defaultApiCall();
-        enqueueSnackbar("Uploaded Successfully", { variant: "success" });
-      } catch (e) {
-        console.log(e);
-        enqueueSnackbar(e.response.data.message, { variant: "error" });
-      }
-    } else if (!body.videoLink) {
-      enqueueSnackbar("link must be a valid url", { variant: "warning" });
-    } else {
-      enqueueSnackbar("All fields are required", { variant: "warning" });
+
+    // Validation
+    if (!body.videoLink) {
+      enqueueSnackbar("Video link is required", { variant: "warning" });
+      return;
+    }
+    if (!body.title) {
+      enqueueSnackbar("Title is required", { variant: "warning" });
+      return;
+    }
+    if (!body.genre) {
+      enqueueSnackbar("Genre is required", { variant: "warning" });
+      return;
+    }
+    if (!body.contentRating) {
+      enqueueSnackbar("Content rating is required", { variant: "warning" });
+      return;
+    }
+    if (!body.releaseDate) {
+      enqueueSnackbar("Release date is required", { variant: "warning" });
+      return;
+    }
+    if (!body.previewImage) {
+      enqueueSnackbar("Preview image is required", { variant: "warning" });
+      return;
+    }
+
+    try {
+      await videoAPI.createVideo(body);
+      handleClose();
+      defaultApiCall();
+      enqueueSnackbar("Video uploaded successfully!", { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error.message || "Failed to upload video", {
+        variant: "error",
+      });
     }
   };
 

@@ -1,15 +1,14 @@
 import { Box, Grid, Skeleton, Card, Typography } from "@mui/material";
-import axios from "axios";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Header from "./Header";
 import Filter from "./Filter";
 import VideoCard from "./VideoCard";
 import { ClimbingBoxLoader } from "react-spinners";
 import { useSnackbar } from "notistack";
-import { config } from "../App";
+import { videoAPI } from "../services/api";
 // export const FilterContext=createContext()
 const HomePage = ({ videopage }) => {
-  const { enqueSnackbar } = useSnackbar();
+  const { enqueueSnackbar } = useSnackbar();
   const [videos, setVideos] = useState([]);
   const [search, setSearch] = useState("");
   const [genreFilter, updateGenreFilter] = useState(["All"]);
@@ -17,63 +16,54 @@ const HomePage = ({ videopage }) => {
   const [sortFilter, updateSortFilter] = useState("releaseDate");
   const [isLoading, setIsLoading] = useState(false);
 
-  const defaultApiCall = async () => {
-    let url = `${config.endpoint}v1/videos`;
-    setIsLoading(true);
-    axios
-      .get(url)
-      .then((res) => {
-        setVideos(res.data.videos);
-        setIsLoading(false);
-      })
-      .catch((e) => {
-        setIsLoading(false);
-        if (e.response && e.response.status === 500) {
-          enqueSnackbar(e.response.data.message, { variant: "error" });
-        } else {
-          enqueSnackbar(
-            "Something went wrong. Check that the backend is running, reachable and returns valid JSON.",
-            { variant: "error" }
-          );
-        }
-      });
-  };
+  // Memoize API parameters to prevent unnecessary calls
+  const apiParams = useMemo(() => {
+    const params = {
+      genres: genreFilter.join(","),
+      contentRating: ageFilter,
+      sortBy: sortFilter,
+    };
 
-  const performAPICall = async () => {
-    let url;
-    if (search === "") {
-      url = `${config.endpoint}v1/videos?genres=${genreFilter}&contentRating=${ageFilter}&sortBy=${sortFilter}`;
-    } else {
-      url = `${config.endpoint}v1/videos?title=${search}&genres=${genreFilter}&contentRating=${ageFilter}&sortBy=${sortFilter}`;
+    if (search.trim()) {
+      params.title = search.trim();
     }
 
-    setIsLoading(true);
-    axios
-      .get(url)
-      .then((res) => {
-        setVideos(res.data.videos);
+    return params;
+  }, [search, genreFilter, ageFilter, sortFilter]);
+
+  const fetchVideos = useCallback(
+    async (params = {}) => {
+      setIsLoading(true);
+      try {
+        const response = await videoAPI.getVideos(params);
+        setVideos(response.videos || []);
+      } catch (error) {
+        enqueueSnackbar(error.message || "Failed to fetch videos", {
+          variant: "error",
+        });
+        setVideos([]);
+      } finally {
         setIsLoading(false);
-      })
-      .catch((e) => {
-        setIsLoading(false);
-        if (e.response && e.response.status === 500) {
-          enqueSnackbar(e.response.data.message, { variant: "error" });
-        } else {
-          enqueSnackbar(
-            "Something went wrong. Check that the backend is running, reachable and returns valid JSON.",
-            { variant: "error" }
-          );
-        }
-      });
-  };
+      }
+    },
+    [enqueueSnackbar]
+  );
+
+  const defaultApiCall = useCallback(() => {
+    fetchVideos();
+  }, [fetchVideos]);
+
+  const performAPICall = useCallback(() => {
+    fetchVideos(apiParams);
+  }, [fetchVideos, apiParams]);
 
   useEffect(() => {
     defaultApiCall();
-  }, []);
+  }, [defaultApiCall]);
 
   useEffect(() => {
     performAPICall();
-  }, [genreFilter, ageFilter, sortFilter, search]);
+  }, [performAPICall]);
 
   return (
     <Box

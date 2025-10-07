@@ -1,18 +1,30 @@
-import './App.css';
-import HomePage from './components/HomePage'
-import VideoPage from './components/VideoPage'
-import {Switch,Route} from 'react-router-dom'
-export const config={
-  endpoint:'https://xflix-backend-0qye.onrender.com/'
-}
+import "./App.css";
+import HomePage from "./components/HomePage";
+import VideoPage from "./components/VideoPage";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { SnackbarProvider } from "notistack";
+export const config = {
+  endpoint: "http://localhost:8082/v1/",
+};
+
 function App() {
   return (
-    <div className="App">
-      <Switch>
-        <Route path='/video/:videoId'><VideoPage/></Route>
-        <Route path='/'><HomePage/></Route>
-      </Switch>
-    </div>
+    <SnackbarProvider
+      maxSnack={3}
+      anchorOrigin={{
+        vertical: "top",
+        horizontal: "right",
+      }}
+    >
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/video/:videoId" element={<VideoPage />} />
+            <Route path="/" element={<HomePage />} />
+          </Routes>
+        </div>
+      </Router>
+    </SnackbarProvider>
   );
 }
 
