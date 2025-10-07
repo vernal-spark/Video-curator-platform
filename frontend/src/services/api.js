@@ -1,5 +1,6 @@
 import axios from "axios";
 import config, { API_TIMEOUT, DEFAULT_HEADERS } from "../config/config";
+import { ERROR_MESSAGES } from "../constants";
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -12,6 +13,10 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Add any auth tokens here if needed
+    // const token = localStorage.getItem('token');
+    // if (token) {
+    //   config.headers.Authorization = `Bearer ${token}`;
+    // }
     return config;
   },
   (error) => {
@@ -38,54 +43,82 @@ api.interceptors.response.use(
         case 403:
           throw new Error("Forbidden");
         case 404:
-          throw new Error("Not Found");
+          throw new Error(data.message || ERROR_MESSAGES.VIDEO_NOT_FOUND);
         case 429:
-          throw new Error("Too Many Requests");
+          throw new Error("Too Many Requests - Please slow down");
         case 500:
           throw new Error("Internal Server Error");
         default:
-          throw new Error(data.message || "An error occurred");
+          throw new Error(data.message || ERROR_MESSAGES.GENERIC_ERROR);
       }
     } else if (error.request) {
       // Network error
-      throw new Error("Network Error - Please check your connection");
+      throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
     } else {
       // Other error
-      throw new Error(error.message || "An unexpected error occurred");
+      throw new Error(error.message || ERROR_MESSAGES.GENERIC_ERROR);
     }
   }
 );
 
 // API methods
 export const videoAPI = {
-  // Get all videos with filters
+  /**
+   * Get all videos with filters
+   * @param {Object} params - Query parameters (genres, contentRating, sortBy, page, limit, title)
+   * @returns {Promise<{data: Array, pagination: Object}>}
+   */
   getVideos: async (params = {}) => {
     const response = await api.get("/videos", { params });
+    // Handle both old and new response formats
+    if (response.data.success) {
+      return {
+        videos: response.data.data,
+        pagination: response.data.pagination,
+      };
+    }
     return response.data;
   },
 
-  // Get video by ID
+  /**
+   * Get video by ID
+   * @param {string} videoId - Video ID
+   * @returns {Promise<Object>} Video data
+   */
   getVideoById: async (videoId) => {
     const response = await api.get(`/videos/${videoId}`);
-    return response.data;
+    return response.data.success ? response.data.data : response.data;
   },
 
-  // Create new video
+  /**
+   * Create new video
+   * @param {Object} videoData - Video data
+   * @returns {Promise<Object>} Created video
+   */
   createVideo: async (videoData) => {
     const response = await api.post("/videos", videoData);
-    return response.data;
+    return response.data.success ? response.data.data : response.data;
   },
 
-  // Update video votes
+  /**
+   * Update video votes
+   * @param {string} videoId - Video ID
+   * @param {Object} voteData - Vote data (vote, change)
+   * @returns {Promise<Object>} Updated video
+   */
   updateVotes: async (videoId, voteData) => {
     const response = await api.patch(`/videos/${videoId}/votes`, voteData);
-    return response.data;
+    return response.data.success ? response.data.data : response.data;
   },
 
-  // Update video views
+  /**
+   * Update video views
+   * @param {string} videoId - Video ID
+   * @returns {Promise<Object>} Updated video
+   */
   updateViews: async (videoId) => {
     const response = await api.patch(`/videos/${videoId}/views`);
-    return response.data;
+    return response.data.success ? response.data.data : response.data;
   },
 };
 

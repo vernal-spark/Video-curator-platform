@@ -84,6 +84,7 @@ const Header = ({ search, setSearch, videoPage, defaultApiCall }) => {
               borderColor: "white",
               width: "100%",
               height: "29px",
+              marginTop: "5px",
             },
             endAdornment: (
               <InputAdornment position="end">

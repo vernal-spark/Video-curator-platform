@@ -1,12 +1,13 @@
-import { Box, Grid, Skeleton, Card, Typography } from "@mui/material";
+import React from "react";
+import { Box, Grid, Skeleton, Card, Typography, Fade } from "@mui/material";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Header from "./Header";
 import Filter from "./Filter";
 import VideoCard from "./VideoCard";
-import { ClimbingBoxLoader } from "react-spinners";
+import EmptyState from "./EmptyState";
 import { useSnackbar } from "notistack";
 import { videoAPI } from "../services/api";
-// export const FilterContext=createContext()
+
 const HomePage = ({ videopage }) => {
   const { enqueueSnackbar } = useSnackbar();
   const [videos, setVideos] = useState([]);
@@ -36,7 +37,15 @@ const HomePage = ({ videopage }) => {
       setIsLoading(true);
       try {
         const response = await videoAPI.getVideos(params);
-        setVideos(response.videos || []);
+        const videosData = response.videos || response.data || [];
+        setVideos(videosData);
+
+        if (videosData.length === 0 && Object.keys(params).length > 0) {
+          // Show message if no results found with filters
+          enqueueSnackbar("No videos found matching your criteria", {
+            variant: "info",
+          });
+        }
       } catch (error) {
         enqueueSnackbar(error.message || "Failed to fetch videos", {
           variant: "error",
@@ -49,6 +58,13 @@ const HomePage = ({ videopage }) => {
     [enqueueSnackbar]
   );
 
+  const resetFilters = useCallback(() => {
+    setSearch("");
+    updateGenreFilter(["All"]);
+    updateAgeFilter("Anyone");
+    updateSortFilter("releaseDate");
+  }, []);
+
   const defaultApiCall = useCallback(() => {
     fetchVideos();
   }, [fetchVideos]);
@@ -57,19 +73,27 @@ const HomePage = ({ videopage }) => {
     fetchVideos(apiParams);
   }, [fetchVideos, apiParams]);
 
-  useEffect(() => {
-    defaultApiCall();
-  }, [defaultApiCall]);
-
+  // Only call performAPICall on mount and when filters change
   useEffect(() => {
     performAPICall();
   }, [performAPICall]);
 
+  // Check if filters are active
+  const hasActiveFilters = useMemo(() => {
+    return (
+      search.trim() !== "" ||
+      !genreFilter.includes("All") ||
+      ageFilter !== "Anyone" ||
+      sortFilter !== "releaseDate"
+    );
+  }, [search, genreFilter, ageFilter, sortFilter]);
+
   return (
     <Box
       minHeight="100vh"
-      maxHeight="max-content"
-      sx={{ background: "#181818" }}
+      sx={{
+        background: (theme) => theme.palette.background.default,
+      }}
     >
       {!videopage && (
         <>
@@ -90,53 +114,60 @@ const HomePage = ({ videopage }) => {
       )}
       <Box
         sx={{
-          pt: 2,
-          px: 1,
-          "@media screen and (min-width: 1073px)": { px: 10 },
+          px: { xs: 2, sm: 3, md: 6, lg: 10 },
+          pb: 4,
         }}
       >
-        <Grid
-          container
-          direction="row"
-          justifyContent="center"
-          alignItems="center"
-          spacing={2}
-          // sx={{background:'#181818'}}
-        >
-          {(isLoading ? Array.from(new Array(12)) : videos).map(
-            (ele, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                {ele ? (
-                  <VideoCard video={ele} />
-                ) : (
-                  <Card
-                    style={{ backgroundColor: "#181818" }}
-                    sx={{ border: 0, boxShadow: 0 }}
-                  >
-                    <Skeleton
-                      sx={{ bgcolor: "grey.900" }}
-                      variant="rectangle"
-                      width={400}
-                      height={200}
-                    />
-                    <Skeleton
-                      sx={{ bgcolor: "grey.900", my: 1 }}
-                      variant="rectangle"
-                      width={300}
-                    />
-                    <Skeleton
-                      sx={{ bgcolor: "grey.900" }}
-                      variant="rectangle"
-                      width={275}
-                    />
-                  </Card>
-                )}
-              </Grid>
-            )
-          )}
-        </Grid>
+        {!isLoading && videos.length === 0 ? (
+          <EmptyState
+            type={hasActiveFilters ? "no-results" : "no-videos"}
+            onReset={hasActiveFilters ? resetFilters : null}
+          />
+        ) : (
+          <Grid
+            container
+            spacing={{ xs: 2, sm: 3, md: 3 }}
+            sx={{ alignItems: "stretch" }}
+          >
+            {(isLoading ? Array.from(new Array(12)) : videos).map(
+              (ele, index) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                  <Fade in timeout={300 + index * 50}>
+                    <div style={{ height: "100%" }}>
+                      {ele ? (
+                        <VideoCard video={ele} />
+                      ) : (
+                        <Card
+                          sx={{
+                            backgroundColor: (theme) =>
+                              theme.palette.background.paper,
+                            border: 0,
+                            boxShadow: 0,
+                            height: "100%",
+                          }}
+                        >
+                          <Skeleton
+                            variant="rectangular"
+                            width="100%"
+                            sx={{ paddingTop: "56.25%" }}
+                          />
+                          <Box sx={{ p: 2 }}>
+                            <Skeleton variant="text" width="80%" height={30} />
+                            <Skeleton variant="text" width="60%" height={20} />
+                            <Skeleton variant="text" width="40%" height={20} />
+                          </Box>
+                        </Card>
+                      )}
+                    </div>
+                  </Fade>
+                </Grid>
+              )
+            )}
+          </Grid>
+        )}
       </Box>
     </Box>
   );
 };
+
 export default HomePage;

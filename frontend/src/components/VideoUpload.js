@@ -1,460 +1,667 @@
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Stack,
   Button,
   Typography,
   TextField,
-  styled,
-  InputLabel,
   Select,
   MenuItem,
   FormControl,
   Modal,
-  FormSelect,
+  Paper,
+  Fade,
+  IconButton,
+  Divider,
+  CircularProgress,
+  InputAdornment,
 } from "@mui/material";
 import { videoAPI } from "../services/api";
 import dayjs from "dayjs";
-import UploadIcon from "@mui/icons-material/Upload";
-import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import CloseIcon from "@mui/icons-material/Close";
+import VideoLibraryIcon from "@mui/icons-material/VideoLibrary";
+import LinkIcon from "@mui/icons-material/Link";
+import TitleIcon from "@mui/icons-material/Title";
+import CategoryIcon from "@mui/icons-material/Category";
+import SupervisedUserCircleIcon from "@mui/icons-material/SupervisedUserCircle";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import CloseIcon from "@mui/icons-material/Close";
-import { useState } from "react";
 import { useSnackbar } from "notistack";
+import { GENRES, AGE_RATINGS, PLATFORMS } from "../constants";
 
-const dropdown = {
-  "&.MuiInputBase-root": {
-    "& .MuiSvgIcon-root": {
-      color: "white",
-    },
-    "& .MuiSelect-select": {
-      color: "white",
-    },
-    "& fieldset": {
-      borderColor: "#808080",
-    },
-    "&:hover fieldset": {
-      borderColor: "white",
-    },
-    "&.Mui-focused fieldset": {
-      borderColor: "white",
-    },
-  },
-};
-
-const CssTextField = styled(TextField)({
-  "& label.Mui-focused": {
-    color: "white",
-  },
-  "& label": {
-    color: "white",
-  },
-  "& .MuiInput-underline:after": {
-    borderBottomColor: "green",
-  },
-
-  "& .MuiOutlinedInput-root": {
-    "& fieldset": {
-      borderColor: "grey",
-    },
-    "&:hover fieldset": {
-      borderColor: "white",
-    },
-    "&.Mui-focused fieldset": {
-      borderColor: "white",
-    },
-  },
-});
-
-const years = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "June",
-  "July",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
+/**
+ * VideoUpload Component - Modern upload button and modal
+ * @param {Function} defaultApiCall - Callback to refresh video list
+ */
 const VideoUpload = ({ defaultApiCall }) => {
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [platform, setPlatform] = useState("");
   const [videoLink, setVideoLink] = useState("");
+  const [originalLink, setOriginalLink] = useState("");
   const [previewImage, setPreviewImage] = useState("");
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [age, setAge] = useState("");
-  const [date, setDate] = useState(
-    new Date().getDate() +
-      " " +
-      years[new Date().getMonth()] +
-      " " +
-      new Date().getFullYear()
-  );
   const [value, setValue] = useState(dayjs(new Date()));
 
-  const genreArr = [
-    "Education",
-    "Sports",
-    "Movies",
-    "Comedy",
-    "Lifestyle",
-    "All",
-  ];
+  const handleOpen = useCallback(() => setOpen(true), []);
 
-  const ageArr = ["Anyone", "7+", "12+", "16+", "18+"];
-
-  const platformArr = ["youtube", "vimeo"];
-
-  const style = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: "20rem",
-    bgcolor: "#181818",
-    boxShadow: 24,
-    p: 4,
-    color: "white",
-  };
-  const container = {
-    position: "relative",
-    width: "20rem",
-    left: "50rem",
-    top: "15vh",
-    background: "#181818",
-    padding: "12px",
-    color: "white",
-    borderRadius: "4px",
-    "@media screen and (max-width:1700px)": {
-      position: "relative",
-      left: "25rem",
-      top: "15vh",
-    },
-    "@media screen and (max-width:991px)": {
-      position: "relative",
-      left: "18rem",
-      top: "15vh",
-    },
-    "@media screen and (max-width:767px)": {
-      position: "relative",
-      left: "3.1rem",
-      top: 0,
-    },
-  };
-
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    if (uploading) return;
     setPlatform("");
     setVideoLink("");
+    setOriginalLink("");
     setPreviewImage("");
     setTitle("");
     setAge("");
     setGenre("");
-    setDate(
-      new Date().getDate() +
-        " " +
-        years[new Date().getMonth()] +
-        " " +
-        new Date().getFullYear()
-    );
+    setValue(dayjs(new Date()));
     setOpen(false);
-  };
+  }, [uploading]);
 
-  const handleVideoLink = (link) => {
-    if (platform === "") {
-      setVideoLink("");
-      enqueueSnackbar("Enter the Platform", { variant: "warning" });
-    }
-    const url = new URL(link);
-    let vLink, pImage;
-    if (platform === "youtube") {
-      const videoParam = url.searchParams.get("v");
-      vLink = `youtube.com/embed/${videoParam}`;
-      pImage = `https://i.ytimg.com/vi/${videoParam}/mqdefault.jpg`;
-    } else if (platform === "vimeo") {
-      const videoParam = url.pathname.substr(1);
-      vLink = `https://player.vimeo.com/video/${videoParam}`;
-      pImage = `https://vumbnail.com//${videoParam}.jpg`;
-      console.log(vLink);
-    }
-    setPreviewImage(pImage);
-    setVideoLink(vLink);
-  };
+  const handleVideoLink = useCallback(
+    (link) => {
+      if (!link.trim()) {
+        setVideoLink("");
+        setPreviewImage("");
+        setOriginalLink("");
+        return;
+      }
 
-  const handleDateChange = (newValue) => {
-    setValue(newValue);
-    const date = newValue.date();
-    const month = years[newValue.month()];
-    const fullYear = newValue.year();
-    const dateString = date + " " + month + " " + fullYear;
-    setDate(dateString);
-  };
+      if (!platform) {
+        enqueueSnackbar("Please select a platform first", {
+          variant: "warning",
+        });
+        return;
+      }
 
-  const uploadVideo = async () => {
-    const body = {
-      videoLink: videoLink,
-      title: title,
-      genre: genre,
-      contentRating: age,
-      releaseDate: date,
-      previewImage: previewImage,
-    };
+      try {
+        const url = new URL(link);
+        let vLink, pImage;
 
+        if (platform === "youtube") {
+          const videoParam = url.searchParams.get("v");
+          if (!videoParam) {
+            enqueueSnackbar("Invalid YouTube URL", { variant: "error" });
+            return;
+          }
+          vLink = `youtube.com/embed/${videoParam}`;
+          pImage = `https://i.ytimg.com/vi/${videoParam}/mqdefault.jpg`;
+        } else if (platform === "vimeo") {
+          const videoParam = url.pathname.substring(1).split("/")[0];
+          if (!videoParam) {
+            enqueueSnackbar("Invalid Vimeo URL", { variant: "error" });
+            return;
+          }
+          // Store as direct vimeo link instead of embed URL due to Vimeo restrictions
+          vLink = `vimeo.com/${videoParam}`;
+          pImage = `https://vumbnail.com/${videoParam}.jpg`;
+        }
+
+        setPreviewImage(pImage);
+        setVideoLink(vLink);
+        setOriginalLink(link);
+        enqueueSnackbar("✓ Video link validated!", { variant: "success" });
+      } catch (error) {
+        enqueueSnackbar("Invalid URL format", { variant: "error" });
+      }
+    },
+    [platform, enqueueSnackbar]
+  );
+
+  const uploadVideo = useCallback(async () => {
     // Validation
-    if (!body.videoLink) {
+    if (!platform) {
+      enqueueSnackbar("Platform is required", { variant: "warning" });
+      return;
+    }
+    if (!videoLink) {
       enqueueSnackbar("Video link is required", { variant: "warning" });
       return;
     }
-    if (!body.title) {
+    if (!title.trim()) {
       enqueueSnackbar("Title is required", { variant: "warning" });
       return;
     }
-    if (!body.genre) {
+    if (!genre) {
       enqueueSnackbar("Genre is required", { variant: "warning" });
       return;
     }
-    if (!body.contentRating) {
-      enqueueSnackbar("Content rating is required", { variant: "warning" });
-      return;
-    }
-    if (!body.releaseDate) {
-      enqueueSnackbar("Release date is required", { variant: "warning" });
-      return;
-    }
-    if (!body.previewImage) {
-      enqueueSnackbar("Preview image is required", { variant: "warning" });
+    if (!age) {
+      enqueueSnackbar("Age rating is required", { variant: "warning" });
       return;
     }
 
+    const body = {
+      videoLink: videoLink,
+      title: title.trim(),
+      genre: genre,
+      contentRating: age,
+      releaseDate: value.format("DD MMM YYYY"),
+      previewImage: previewImage,
+    };
+
+    setUploading(true);
     try {
       await videoAPI.createVideo(body);
+      enqueueSnackbar("🎉 Video uploaded successfully!", {
+        variant: "success",
+      });
       handleClose();
       defaultApiCall();
-      enqueueSnackbar("Video uploaded successfully!", { variant: "success" });
     } catch (error) {
       enqueueSnackbar(error.message || "Failed to upload video", {
         variant: "error",
       });
+    } finally {
+      setUploading(false);
     }
-  };
+  }, [
+    platform,
+    videoLink,
+    title,
+    genre,
+    age,
+    value,
+    previewImage,
+    enqueueSnackbar,
+    handleClose,
+    defaultApiCall,
+  ]);
 
   return (
     <>
-      <Button variant="contained" onClick={handleOpen}>
-        <UploadIcon />
+      {/* Modern Upload Button */}
+      <Button
+        variant="contained"
+        onClick={handleOpen}
+        startIcon={<CloudUploadIcon />}
+        sx={{
+          backgroundColor: (theme) => theme.palette.primary.main,
+          px: 3,
+          py: 1,
+          fontWeight: 600,
+          fontSize: "0.95rem",
+          textTransform: "none",
+          borderRadius: 2,
+          boxShadow: "0 4px 12px rgba(229, 9, 20, 0.4)",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            backgroundColor: (theme) => theme.palette.primary.dark,
+            transform: "translateY(-2px)",
+            boxShadow: "0 6px 20px rgba(229, 9, 20, 0.6)",
+          },
+        }}
+      >
         Upload
       </Button>
-      <Modal open={open}>
-        <Box sx={style}>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{ mb: 3 }}
+
+      {/* Modern Modal */}
+      <Modal
+        open={open}
+        onClose={handleClose}
+        closeAfterTransition
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Fade in={open}>
+          <Paper
+            elevation={24}
+            sx={{
+              width: { xs: "90%", sm: "500px", md: "600px" },
+              maxHeight: "90vh",
+              overflow: "auto",
+              backgroundColor: (theme) => theme.palette.background.paper,
+              borderRadius: 3,
+              outline: "none",
+            }}
           >
-            <Typography variant="h6">Upload Video</Typography>
-            <Button sx={{ color: "white" }} onClick={handleClose}>
-              <CloseIcon />
-            </Button>
-          </Stack>
-          <Stack direction="column" spacing={2}>
-            <Box>
-              <FormControl fullWidth>
-                <InputLabel
-                  id="select-label"
-                  sx={{
-                    "&.MuiInputLabel-root": {
-                      color: "white",
-                      borderColor: "white",
-                    },
-                  }}
-                >
-                  Platform
-                </InputLabel>
-                <Select
-                  sx={dropdown}
-                  labelId="select-label"
-                  id="demo-simple-select"
-                  value={platform}
-                  label="Platform"
-                  onChange={(e) => setPlatform(e.target.value)}
-                  required
-                >
-                  {platformArr.map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant="caption">
-                Enter the platfrom from which you are taking the video
-              </Typography>
-            </Box>
-            <Box>
-              <CssTextField
-                fullWidth
-                label="Video Link"
-                InputProps={{ style: { color: "white" } }}
-                onChange={(e) => handleVideoLink(e.target.value)}
-              />
-              <Typography variant="caption">
-                This link will used to derive the video
-              </Typography>
-            </Box>
-            {/* <Box>
-              <CssTextField
-                fullWidth
-                InputProps={{ style: { color: "white" } }}
-                label="Thumbnail Image Link"
-                onChange={(e) => setPreviewImage(e.target.value)}
-              />
-              <Typography variant="caption">
-                This link will be used to preview the thumbnail image
-              </Typography>
-            </Box> */}
-            <Box>
-              <CssTextField
-                fullWidth
-                InputProps={{ style: { color: "white" } }}
-                label="Title"
-                onChange={(e) => setTitle(e.target.value)}
-              />
-              <Typography variant="caption">
-                The title will be reprensentative text for video
-              </Typography>
-            </Box>
-            <Box>
-              <FormControl fullWidth>
-                <InputLabel
-                  id="select-label"
-                  sx={{
-                    "&.MuiInputLabel-root": {
-                      color: "white",
-                      borderColor: "white",
-                    },
-                  }}
-                >
-                  Genre
-                </InputLabel>
-                <Select
-                  sx={dropdown}
-                  labelId="select-label"
-                  id="demo-simple-select"
-                  value={genre}
-                  label="Genre"
-                  onChange={(e) => setGenre(e.target.value)}
-                  required
-                >
-                  {genreArr.map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant="caption">
-                Genre will help in categorizing your videos
-              </Typography>
-            </Box>
-            <Box>
-              <FormControl fullWidth>
-                <InputLabel
-                  id="select-label"
-                  sx={{
-                    "&.MuiInputLabel-root": {
-                      color: "white",
-                      borderColor: "white",
-                    },
-                  }}
-                >
-                  Suitable age group for the clip
-                </InputLabel>
-                <Select
-                  sx={dropdown}
-                  labelId="select-label"
-                  id="demo-simple-select"
-                  value={age}
-                  label="Suitable age group for the clip"
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                >
-                  {ageArr.map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {item}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant="caption">
-                This will be usd to filter videos on age group suitability
-              </Typography>
-            </Box>
-            <Box>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DemoContainer components={["DatePicker"]}>
-                  <DatePicker
-                    fullWidth
+            {/* Header */}
+            <Box
+              sx={{
+                p: 3,
+                borderBottom: (theme) => `1px solid ${theme.palette.grey[800]}`,
+              }}
+            >
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <VideoLibraryIcon
                     sx={{
-                      "& .MuiInputLabel-root": {
-                        color: "white",
-                      },
-                      "& .MuiSvgIcon-root": {
-                        color: "white",
-                      },
-                      "& .MuiOutlinedInput-root": {
-                        "&.MuiInputBase-root": {
-                          color: "white",
+                      color: (theme) => theme.palette.primary.main,
+                      fontSize: 32,
+                    }}
+                  />
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      color: (theme) => theme.palette.text.primary,
+                    }}
+                  >
+                    Upload Video
+                  </Typography>
+                </Stack>
+                <IconButton
+                  onClick={handleClose}
+                  disabled={uploading}
+                  sx={{
+                    color: (theme) => theme.palette.text.secondary,
+                    "&:hover": {
+                      backgroundColor: (theme) => theme.palette.grey[800],
+                    },
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
+              <Typography
+                variant="body2"
+                sx={{ color: (theme) => theme.palette.text.secondary, mt: 0.5 }}
+              >
+                Share your favorite videos with the community
+              </Typography>
+            </Box>
+
+            {/* Form Content */}
+            <Box sx={{ p: 3, overflow: "auto" }}>
+              <Stack spacing={3}>
+                {/* Platform Selection */}
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      mb: 1,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <YouTubeIcon fontSize="small" />
+                    Platform *
+                  </Typography>
+                  <FormControl fullWidth>
+                    <Select
+                      value={platform}
+                      onChange={(e) => setPlatform(e.target.value)}
+                      displayEmpty
+                      disabled={uploading}
+                      sx={{
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: (theme) => theme.palette.grey[700],
+                          borderWidth: "2px",
                         },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: (theme) => theme.palette.primary.main,
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: (theme) => theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      <MenuItem value="" disabled>
+                        <em>Select platform</em>
+                      </MenuItem>
+                      {PLATFORMS.map((item) => (
+                        <MenuItem key={item} value={item}>
+                          {item.charAt(0).toUpperCase() + item.slice(1)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    Choose the platform where your video is hosted
+                  </Typography>
+                </Box>
+
+                {/* Video Link */}
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      mb: 1,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <LinkIcon fontSize="small" />
+                    Video Link *
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={originalLink}
+                    onChange={(e) => handleVideoLink(e.target.value)}
+                    disabled={uploading || !platform}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LinkIcon
+                            sx={{
+                              color: (theme) => theme.palette.text.secondary,
+                            }}
+                          />
+                        </InputAdornment>
+                      ),
+                      endAdornment: videoLink && (
+                        <InputAdornment position="end">
+                          <CheckCircleIcon
+                            sx={{
+                              color: (theme) => theme.palette.success.main,
+                            }}
+                          />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
                         "& fieldset": {
-                          borderColor: "#808080",
+                          borderColor: (theme) => theme.palette.grey[700],
+                          borderWidth: "2px",
                         },
                         "&:hover fieldset": {
-                          borderColor: "white",
+                          borderColor: (theme) => theme.palette.primary.main,
                         },
                         "&.Mui-focused fieldset": {
-                          borderColor: "white",
+                          borderColor: (theme) => theme.palette.primary.main,
                         },
                       },
                     }}
-                    label="Upload and Publish date"
-                    value={value}
-                    onChange={handleDateChange}
                   />
-                </DemoContainer>
-              </LocalizationProvider>
-              <Typography variant="caption">
-                This will be used to sort the videos
-              </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    Paste the full URL from {platform || "your platform"}
+                  </Typography>
+                </Box>
+
+                {/* Title */}
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      mb: 1,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <TitleIcon fontSize="small" />
+                    Video Title *
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder="Enter a descriptive title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={uploading}
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        "& fieldset": {
+                          borderColor: (theme) => theme.palette.grey[700],
+                          borderWidth: "2px",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: (theme) => theme.palette.primary.main,
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: (theme) => theme.palette.primary.main,
+                        },
+                      },
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    A clear title helps others find your video
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                {/* Genre and Age Rating Row */}
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  {/* Genre */}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        mb: 1,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <CategoryIcon fontSize="small" />
+                      Genre *
+                    </Typography>
+                    <FormControl fullWidth>
+                      <Select
+                        value={genre}
+                        onChange={(e) => setGenre(e.target.value)}
+                        displayEmpty
+                        disabled={uploading}
+                        sx={{
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.grey[700],
+                            borderWidth: "2px",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.primary.main,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.primary.main,
+                          },
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>Select genre</em>
+                        </MenuItem>
+                        {GENRES.filter((g) => g !== "All").map((item) => (
+                          <MenuItem key={item} value={item}>
+                            {item}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  {/* Age Rating */}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        mb: 1,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <SupervisedUserCircleIcon fontSize="small" />
+                      Age Rating *
+                    </Typography>
+                    <FormControl fullWidth>
+                      <Select
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        displayEmpty
+                        disabled={uploading}
+                        sx={{
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.grey[700],
+                            borderWidth: "2px",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.primary.main,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: (theme) => theme.palette.primary.main,
+                          },
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>Select rating</em>
+                        </MenuItem>
+                        {AGE_RATINGS.map((item) => (
+                          <MenuItem key={item} value={item}>
+                            {item}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                </Stack>
+
+                {/* Date Picker */}
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      mb: 1,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <CalendarTodayIcon fontSize="small" />
+                    Release Date
+                  </Typography>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      value={value}
+                      onChange={(newValue) => setValue(newValue)}
+                      disabled={uploading}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          sx: {
+                            "& .MuiOutlinedInput-root": {
+                              "& fieldset": {
+                                borderColor: (theme) => theme.palette.grey[700],
+                                borderWidth: "2px",
+                              },
+                              "&:hover fieldset": {
+                                borderColor: (theme) =>
+                                  theme.palette.primary.main,
+                              },
+                              "&.Mui-focused fieldset": {
+                                borderColor: (theme) =>
+                                  theme.palette.primary.main,
+                              },
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => theme.palette.text.secondary,
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    When was this video originally published?
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
-          </Stack>
-          <Stack sx={{ mt: 2 }} direction="row">
-            <Button
-              variant="contained"
-              onClick={uploadVideo}
+
+            {/* Footer Actions */}
+            <Box
               sx={{
-                backgroundColor: "red",
-                "&:hover": { backgroundColor: "black" },
+                p: 3,
+                borderTop: (theme) => `1px solid ${theme.palette.grey[800]}`,
+                backgroundColor: (theme) => theme.palette.background.elevated,
               }}
             >
-              Upload Video
-            </Button>
-            <Button sx={{ color: "#808080" }} onClick={handleClose}>
-              Cancel
-            </Button>
-          </Stack>
-        </Box>
+              <Stack direction="row" spacing={2} justifyContent="flex-end">
+                <Button
+                  variant="outlined"
+                  onClick={handleClose}
+                  disabled={uploading}
+                  sx={{
+                    px: 3,
+                    borderColor: (theme) => theme.palette.grey[700],
+                    color: (theme) => theme.palette.text.secondary,
+                    "&:hover": {
+                      borderColor: (theme) => theme.palette.grey[600],
+                      backgroundColor: (theme) => theme.palette.grey[900],
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={uploadVideo}
+                  disabled={uploading}
+                  startIcon={
+                    uploading ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <CloudUploadIcon />
+                    )
+                  }
+                  sx={{
+                    px: 4,
+                    backgroundColor: (theme) => theme.palette.primary.main,
+                    fontWeight: 600,
+                    "&:hover": {
+                      backgroundColor: (theme) => theme.palette.primary.dark,
+                    },
+                    "&.Mui-disabled": {
+                      backgroundColor: (theme) => theme.palette.grey[800],
+                    },
+                  }}
+                >
+                  {uploading ? "Uploading..." : "Upload Video"}
+                </Button>
+              </Stack>
+            </Box>
+          </Paper>
+        </Fade>
       </Modal>
     </>
   );
 };
 
-export default VideoUpload;
+export default React.memo(VideoUpload);

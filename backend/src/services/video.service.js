@@ -1,24 +1,63 @@
 const httpStatus = require("http-status");
 const Video = require("../model/video.model");
 const ApiError = require("../utils/ApiError");
+const logger = require("../utils/logger");
+const { VIDEO_CONSTANTS } = require("../utils/constants");
 
+/**
+ * Get possible content ratings based on the selected rating
+ * @param {string} contentRating - The selected content rating
+ * @returns {string[]} Array of applicable content ratings
+ */
 const getPossibleContentRatings = (contentRating) => {
-  const possibleRatings = ["7+", "12+", "16+", "18+"];
+  const possibleRatings = VIDEO_CONSTANTS.CONTENT_RATINGS.filter(
+    (rating) => rating !== "Anyone"
+  );
+
   if (contentRating === "Anyone") {
     return possibleRatings;
   }
-  const i = possibleRatings.indexOf(contentRating);
-  if (i === -1) {
-    return possibleRatings; // Return all if not found
+
+  const index = possibleRatings.indexOf(contentRating);
+  if (index === -1) {
+    logger.warn(`Invalid content rating: ${contentRating}`);
+    return possibleRatings;
   }
-  return possibleRatings.slice(i); // Use slice instead of splice to avoid mutation
+
+  return possibleRatings.slice(index);
 };
-const searchVideos = async (title, genre, contentRating, sortBy) => {
+/**
+ * Search and filter videos with advanced options
+ * @param {string} title - Search query for video title
+ * @param {string[]} genre - Array of genres to filter by
+ * @param {string} contentRating - Content rating filter
+ * @param {string} sortBy - Field to sort by (releaseDate, viewCount, title)
+ * @param {number} page - Page number for pagination
+ * @param {number} limit - Number of results per page
+ * @returns {Promise<{videos: Array, total: number, page: number, totalPages: number}>}
+ */
+const searchVideos = async (
+  title,
+  genre,
+  contentRating,
+  sortBy,
+  page = 1,
+  limit = VIDEO_CONSTANTS.DEFAULT_PAGE_SIZE
+) => {
   try {
+    logger.info("Searching videos", {
+      title,
+      genre,
+      contentRating,
+      sortBy,
+      page,
+      limit,
+    });
+
     // Build query object
     const query = {};
 
-    // Title search (case-insensitive)
+    // Title search (case-insensitive with index support)
     if (title && title.trim()) {
       query.title = { $regex: title.trim(), $options: "i" };
     }
@@ -35,14 +74,37 @@ const searchVideos = async (title, genre, contentRating, sortBy) => {
     }
 
     // Sorting
-    let sortByMatch = { releaseDate: -1 };
-    if (sortBy === "viewCount") {
-      sortByMatch = { viewCount: -1 };
-    }
+    const sortOptions = {
+      releaseDate: { releaseDate: -1 },
+      viewCount: { viewCount: -1 },
+      title: { title: 1 },
+    };
+    const sortByMatch = sortOptions[sortBy] || sortOptions.releaseDate;
 
-    const result = await Video.find(query).sort(sortByMatch).lean();
-    return result;
+    // Pagination
+    const skip = (page - 1) * limit;
+    const validLimit = Math.min(
+      Math.max(1, limit),
+      VIDEO_CONSTANTS.MAX_PAGE_SIZE
+    );
+
+    // Execute query with pagination
+    const [videos, total] = await Promise.all([
+      Video.find(query).sort(sortByMatch).skip(skip).limit(validLimit).lean(),
+      Video.countDocuments(query),
+    ]);
+
+    logger.info(`Found ${total} videos matching criteria`);
+
+    return {
+      videos,
+      total,
+      page,
+      totalPages: Math.ceil(total / validLimit),
+      hasMore: skip + videos.length < total,
+    };
   } catch (error) {
+    logger.error("Error searching videos", { error: error.message });
     throw new ApiError(
       httpStatus.INTERNAL_SERVER_ERROR,
       "Error searching videos"
