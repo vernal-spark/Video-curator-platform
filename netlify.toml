@@ -1,0 +1,23 @@
+[build]
+  # Base directory for the frontend
+  base = "frontend"
+  
+  # Build command
+  command = "npm run build"
+  
+  # Output directory (relative to base)
+  publish = "build"
+  
+  # Install command with legacy peer deps
+  [build.environment]
+    NPM_FLAGS = "--legacy-peer-deps"
+
+# Redirect all routes to index.html for React Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: Set Node version
+[build.environment]
+  NODE_VERSION = "18"
